@@ -28,9 +28,7 @@ class ExampleTest extends TestCase
             'longitude' => 135.4966,
             'product_name' => 'MEGAドリームex',
             'quantity_text' => '5 pack',
-            'sale_type' => 'now',
-            'sale_at' => '2026-09-21 10:00:00',
-            'expires_at' => '2026-09-21 13:00:00',
+            'status' => 'active',
             'note' => 'Moi nguoi toi da 5 pack',
         ]);
 
@@ -49,5 +47,68 @@ class ExampleTest extends TestCase
             'quantity_text' => '5 pack',
             'status' => 'active',
         ]);
+
+        $report = SalesReport::first();
+
+        $this->assertNotNull($report->expires_at);
+        $this->assertTrue($report->expires_at->greaterThan(now()->addHours(11)));
+    }
+
+    public function test_sold_out_and_expired_reports_are_hidden_from_the_map(): void
+    {
+        $store = Store::create([
+            'name' => 'Visible Store',
+            'latitude' => 34.7043,
+            'longitude' => 135.4966,
+        ]);
+
+        $hiddenStore = Store::create([
+            'name' => 'Hidden Store',
+            'latitude' => 34.7143,
+            'longitude' => 135.5066,
+        ]);
+
+        $product = Product::create([
+            'name' => 'MEGAドリームex',
+            'is_active' => true,
+        ]);
+
+        SalesReport::create([
+            'store_id' => $store->id,
+            'product_id' => $product->id,
+            'quantity' => 0,
+            'quantity_text' => '5 pack',
+            'sale_type' => 'now',
+            'sale_at' => now(),
+            'expires_at' => now()->addHours(12),
+            'status' => 'active',
+        ]);
+
+        SalesReport::create([
+            'store_id' => $hiddenStore->id,
+            'product_id' => $product->id,
+            'quantity' => 0,
+            'quantity_text' => '1 box',
+            'sale_type' => 'now',
+            'sale_at' => now(),
+            'expires_at' => now()->addHours(12),
+            'status' => 'sold_out',
+        ]);
+
+        SalesReport::create([
+            'store_id' => $hiddenStore->id,
+            'product_id' => $product->id,
+            'quantity' => 0,
+            'quantity_text' => '10 pack',
+            'sale_type' => 'now',
+            'sale_at' => now()->subHours(13),
+            'expires_at' => now()->subHour(),
+            'status' => 'active',
+        ]);
+
+        $response = $this->get('/');
+
+        $response->assertSee('Visible Store');
+        $response->assertDontSee('Hidden Store');
     }
 }

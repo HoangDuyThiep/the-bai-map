@@ -359,6 +359,23 @@
             background: #e6edf5;
         }
 
+        .form-errors {
+            display: grid;
+            gap: 6px;
+            padding: 10px 12px;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            color: #991b1b;
+            background: #fef2f2;
+            font-size: 13px;
+        }
+
+        .field-error {
+            color: #b91c1c;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
         .notice {
             position: absolute;
             z-index: 550;
@@ -421,7 +438,7 @@
         <div class="store-list" id="storeList"></div>
     </section>
 
-    <section class="drawer" id="reportFormDrawer" aria-label="Thêm thông tin bán hàng">
+    <section class="drawer {{ $errors->any() ? 'open' : '' }}" id="reportFormDrawer" aria-label="Thêm thông tin bán hàng">
         <div class="drawer-header">
             <h1 class="drawer-title">Thêm thông tin</h1>
             <button class="tab" id="closeFormButton" type="button">Đóng</button>
@@ -430,25 +447,46 @@
         <form class="report-form" method="POST" action="/reports">
             @csrf
 
+            @if ($errors->any())
+                <div class="form-errors" role="alert">
+                    <strong>Vui lòng kiểm tra lại thông tin.</strong>
+                    @foreach ($errors->all() as $error)
+                        <span>{{ $error }}</span>
+                    @endforeach
+                </div>
+            @endif
+
             <label>
                 Tên cửa hàng
-                <input name="store_name" type="text" required placeholder="Joshin Hirakata">
+                <input name="store_name" type="text" required placeholder="Joshin Hirakata" value="{{ old('store_name') }}">
+                @error('store_name')
+                    <span class="field-error">{{ $message }}</span>
+                @enderror
             </label>
 
             <label>
                 Địa chỉ
-                <input name="address" type="text" placeholder="Hirakata, Osaka">
+                <input name="address" type="text" placeholder="Hirakata, Osaka" value="{{ old('address') }}">
+                @error('address')
+                    <span class="field-error">{{ $message }}</span>
+                @enderror
             </label>
 
             <div class="form-grid">
                 <label>
                     Latitude
-                    <input name="latitude" id="latitudeInput" type="number" step="0.0000001" required>
+                    <input name="latitude" id="latitudeInput" type="number" step="0.0000001" required value="{{ old('latitude') }}">
+                    @error('latitude')
+                        <span class="field-error">{{ $message }}</span>
+                    @enderror
                 </label>
 
                 <label>
                     Longitude
-                    <input name="longitude" id="longitudeInput" type="number" step="0.0000001" required>
+                    <input name="longitude" id="longitudeInput" type="number" step="0.0000001" required value="{{ old('longitude') }}">
+                    @error('longitude')
+                        <span class="field-error">{{ $message }}</span>
+                    @enderror
                 </label>
             </div>
 
@@ -458,35 +496,37 @@
 
             <label>
                 Sản phẩm
-                <input name="product_name" type="text" required placeholder="MEGAドリームex">
+                <input name="product_name" type="text" required placeholder="MEGAドリームex" value="{{ old('product_name') }}">
+                @error('product_name')
+                    <span class="field-error">{{ $message }}</span>
+                @enderror
             </label>
 
             <label>
                 Số lượng
-                <input name="quantity_text" type="text" required placeholder="1 box hoặc 5 pack">
+                <input name="quantity_text" type="text" required placeholder="1 box hoặc 5 pack" value="{{ old('quantity_text') }}">
+                @error('quantity_text')
+                    <span class="field-error">{{ $message }}</span>
+                @enderror
             </label>
 
             <label>
-                Thời gian
-                <select name="sale_type" id="saleTypeInput" required>
-                    <option value="now">Đang bán</option>
-                    <option value="scheduled">Chỉ định thời gian</option>
+                Trạng thái
+                <select name="status" id="statusInput" required>
+                    <option value="active" @selected(old('status', 'active') === 'active')>Đang bán</option>
+                    <option value="sold_out" @selected(old('status') === 'sold_out')>Hết bán</option>
                 </select>
-            </label>
-
-            <label>
-                Giờ bán
-                <input name="sale_at" type="datetime-local">
-            </label>
-
-            <label>
-                Hết hạn
-                <input name="expires_at" type="datetime-local">
+                @error('status')
+                    <span class="field-error">{{ $message }}</span>
+                @enderror
             </label>
 
             <label>
                 Ghi chú
-                <textarea name="note" rows="3" placeholder="Mỗi người tối đa 5 pack"></textarea>
+                <textarea name="note" rows="3" placeholder="Mỗi người tối đa 5 pack">{{ old('note') }}</textarea>
+                @error('note')
+                    <span class="field-error">{{ $message }}</span>
+                @enderror
             </label>
 
             <button class="primary-button" type="submit">Đăng thông tin</button>

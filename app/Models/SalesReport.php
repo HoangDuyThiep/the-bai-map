@@ -19,6 +19,11 @@ class SalesReport extends Model
         'status',
     ];
 
+    protected $casts = [
+        'sale_at' => 'datetime',
+        'expires_at' => 'datetime',
+    ];
+
     public function store()
     {
         return $this->belongsTo(Store::class);

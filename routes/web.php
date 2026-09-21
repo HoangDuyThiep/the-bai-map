@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     $reports = SalesReport::with(['store', 'product'])
+        ->where('status', 'active')
+        ->where(function ($query) {
+            $query->whereNull('expires_at')
+                ->orWhere('expires_at', '>', now());
+        })
         ->latest()
         ->get()
         ->map(function ($report) {
@@ -41,10 +46,22 @@ Route::post('/reports', function (Request $request) {
         'longitude' => ['required', 'numeric'],
         'product_name' => ['required', 'string', 'max:255'],
         'quantity_text' => ['required', 'string', 'max:255'],
-        'sale_type' => ['required', 'in:now,scheduled'],
-        'sale_at' => ['nullable', 'date'],
-        'expires_at' => ['nullable', 'date'],
+        'status' => ['required', 'in:active,sold_out'],
         'note' => ['nullable', 'string'],
+    ], [
+        'required' => ':attribute là bắt buộc.',
+        'numeric' => ':attribute phải là số.',
+        'in' => ':attribute không hợp lệ.',
+        'max' => ':attribute không được vượt quá :max ký tự.',
+    ], [
+        'store_name' => 'Tên cửa hàng',
+        'latitude' => 'Latitude',
+        'longitude' => 'Longitude',
+        'product_name' => 'Sản phẩm',
+        'quantity_text' => 'Số lượng',
+        'status' => 'Trạng thái',
+        'address' => 'Địa chỉ',
+        'note' => 'Ghi chú',
     ]);
 
     $store = Store::create([
@@ -67,11 +84,11 @@ Route::post('/reports', function (Request $request) {
         'product_id' => $product->id,
         'quantity' => 0,
         'quantity_text' => $validated['quantity_text'],
-        'sale_type' => $validated['sale_type'],
-        'sale_at' => $validated['sale_at'] ?? now(),
-        'expires_at' => $validated['expires_at'] ?? now()->addHours(3),
+        'sale_type' => 'now',
+        'sale_at' => now(),
+        'expires_at' => now()->addHours(12),
         'note' => $validated['note'] ?? null,
-        'status' => $validated['sale_type'] === 'scheduled' ? 'scheduled' : 'active',
+        'status' => $validated['status'],
     ]);
 
     return redirect('/');

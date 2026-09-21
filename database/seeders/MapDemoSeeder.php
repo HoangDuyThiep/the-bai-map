@@ -59,9 +59,9 @@ class MapDemoSeeder extends Seeder
             'quantity' => 20,
             'quantity_text' => '20 box',
             'sale_type' => 'now',
-            'sale_at' => '2026-09-21 10:00:00',
-            'expires_at' => '2026-09-21 13:00:00',
-            'note' => '1 nguoi toi da 1 BOX',
+            'sale_at' => now(),
+            'expires_at' => now()->addHours(12),
+            'note' => 'Mỗi người tối đa 1 BOX',
             'status' => 'active',
         ]);
 
@@ -70,11 +70,11 @@ class MapDemoSeeder extends Seeder
             'product_id' => $rocket->id,
             'quantity' => 10,
             'quantity_text' => '10 pack',
-            'sale_type' => 'scheduled',
-            'sale_at' => '2026-09-21 15:00:00',
-            'expires_at' => '2026-09-21 18:00:00',
-            'note' => 'Xep hang truoc quay gachapon',
-            'status' => 'scheduled',
+            'sale_type' => 'now',
+            'sale_at' => now(),
+            'expires_at' => now()->addHours(12),
+            'note' => 'Vừa có người báo đã hết hàng',
+            'status' => 'sold_out',
         ]);
 
         SalesReport::create([
@@ -83,10 +83,10 @@ class MapDemoSeeder extends Seeder
             'quantity' => 5,
             'quantity_text' => '5 pack',
             'sale_type' => 'now',
-            'sale_at' => '2026-09-21 09:30:00',
-            'expires_at' => '2026-09-21 12:30:00',
-            'note' => 'Thong tin can kiem tra lai',
-            'status' => 'expired',
+            'sale_at' => now()->subHours(13),
+            'expires_at' => now()->subHour(),
+            'note' => 'Thông tin cũ đã tự quá hạn',
+            'status' => 'active',
         ]);
     }
 }
