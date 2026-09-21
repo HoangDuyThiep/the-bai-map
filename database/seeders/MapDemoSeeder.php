@@ -70,11 +70,11 @@ class MapDemoSeeder extends Seeder
             'product_id' => $rocket->id,
             'quantity' => 10,
             'quantity_text' => '10 pack',
-            'sale_type' => 'now',
-            'sale_at' => now(),
-            'expires_at' => now()->addHours(12),
-            'note' => 'Vừa có người báo đã hết hàng',
-            'status' => 'sold_out',
+            'sale_type' => 'scheduled',
+            'sale_at' => now()->addHours(2),
+            'expires_at' => now()->addHours(14),
+            'note' => 'Dự kiến bắt đầu bán sau 2 tiếng',
+            'status' => 'scheduled',
         ]);
 
         SalesReport::create([

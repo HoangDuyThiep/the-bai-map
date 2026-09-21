@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     $reports = SalesReport::with(['store', 'product'])
-        ->where('status', 'active')
+        ->whereIn('status', ['active', 'scheduled'])
         ->where(function ($query) {
             $query->whereNull('expires_at')
                 ->orWhere('expires_at', '>', now());
@@ -46,11 +46,14 @@ Route::post('/reports', function (Request $request) {
         'longitude' => ['required', 'numeric'],
         'product_name' => ['required', 'string', 'max:255'],
         'quantity_text' => ['required', 'string', 'max:255'],
-        'status' => ['required', 'in:active,sold_out'],
+        'status' => ['required', 'in:active,scheduled,sold_out'],
+        'sale_at' => ['nullable', 'required_if:status,scheduled', 'date'],
         'note' => ['nullable', 'string'],
     ], [
         'required' => ':attribute là bắt buộc.',
+        'required_if' => ':attribute là bắt buộc khi trạng thái là Sắp bán.',
         'numeric' => ':attribute phải là số.',
+        'date' => ':attribute phải là thời gian hợp lệ.',
         'in' => ':attribute không hợp lệ.',
         'max' => ':attribute không được vượt quá :max ký tự.',
     ], [
@@ -60,6 +63,7 @@ Route::post('/reports', function (Request $request) {
         'product_name' => 'Sản phẩm',
         'quantity_text' => 'Số lượng',
         'status' => 'Trạng thái',
+        'sale_at' => 'Giờ bán',
         'address' => 'Địa chỉ',
         'note' => 'Ghi chú',
     ]);
@@ -79,14 +83,18 @@ Route::post('/reports', function (Request $request) {
         ],
     );
 
+    $saleAt = $validated['status'] === 'scheduled'
+        ? $validated['sale_at']
+        : now();
+
     SalesReport::create([
         'store_id' => $store->id,
         'product_id' => $product->id,
         'quantity' => 0,
         'quantity_text' => $validated['quantity_text'],
-        'sale_type' => 'now',
-        'sale_at' => now(),
-        'expires_at' => now()->addHours(12),
+        'sale_type' => $validated['status'] === 'scheduled' ? 'scheduled' : 'now',
+        'sale_at' => $saleAt,
+        'expires_at' => \Illuminate\Support\Carbon::parse($saleAt)->addHours(12),
         'note' => $validated['note'] ?? null,
         'status' => $validated['status'],
     ]);

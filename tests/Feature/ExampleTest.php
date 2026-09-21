@@ -54,6 +54,48 @@ class ExampleTest extends TestCase
         $this->assertTrue($report->expires_at->greaterThan(now()->addHours(11)));
     }
 
+    public function test_scheduled_report_requires_sale_time(): void
+    {
+        $response = $this->from('/')->post('/reports', [
+            'store_name' => 'Joshin Test',
+            'latitude' => 34.7043,
+            'longitude' => 135.4966,
+            'product_name' => 'MEGAドリームex',
+            'quantity_text' => '5 pack',
+            'status' => 'scheduled',
+        ]);
+
+        $response->assertRedirect('/');
+        $response->assertSessionHasErrors('sale_at');
+    }
+
+    public function test_user_can_create_a_scheduled_sales_report(): void
+    {
+        $saleAt = now()->addHours(2)->format('Y-m-d H:i:s');
+
+        $response = $this->post('/reports', [
+            'store_name' => 'Scheduled Store',
+            'latitude' => 34.7043,
+            'longitude' => 135.4966,
+            'product_name' => 'MEGAドリームex',
+            'quantity_text' => '5 pack',
+            'status' => 'scheduled',
+            'sale_at' => $saleAt,
+        ]);
+
+        $response->assertRedirect('/');
+
+        $this->assertDatabaseHas(SalesReport::class, [
+            'quantity_text' => '5 pack',
+            'sale_type' => 'scheduled',
+            'status' => 'scheduled',
+        ]);
+
+        $response = $this->get('/');
+
+        $response->assertSee('Scheduled Store');
+    }
+
     public function test_sold_out_and_expired_reports_are_hidden_from_the_map(): void
     {
         $store = Store::create([

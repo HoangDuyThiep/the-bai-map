@@ -376,6 +376,10 @@
             font-weight: 700;
         }
 
+        .is-hidden {
+            display: none;
+        }
+
         .notice {
             position: absolute;
             z-index: 550;
@@ -514,9 +518,18 @@
                 Trạng thái
                 <select name="status" id="statusInput" required>
                     <option value="active" @selected(old('status', 'active') === 'active')>Đang bán</option>
+                    <option value="scheduled" @selected(old('status') === 'scheduled')>Sắp bán</option>
                     <option value="sold_out" @selected(old('status') === 'sold_out')>Hết bán</option>
                 </select>
                 @error('status')
+                    <span class="field-error">{{ $message }}</span>
+                @enderror
+            </label>
+
+            <label id="saleAtField">
+                Giờ bán
+                <input name="sale_at" id="saleAtInput" type="datetime-local" value="{{ old('sale_at') }}">
+                @error('sale_at')
                     <span class="field-error">{{ $message }}</span>
                 @enderror
             </label>
@@ -576,6 +589,9 @@
     const latitudeInput = document.querySelector('#latitudeInput');
     const longitudeInput = document.querySelector('#longitudeInput');
     const useCurrentLocationButton = document.querySelector('#useCurrentLocationButton');
+    const statusInput = document.querySelector('#statusInput');
+    const saleAtField = document.querySelector('#saleAtField');
+    const saleAtInput = document.querySelector('#saleAtInput');
     let userMarker = null;
     let draftStoreMarker = null;
     const markerById = new Map();
@@ -715,6 +731,12 @@
         showNotice.timer = window.setTimeout(() => notice.classList.remove('show'), 2600);
     }
 
+    function toggleSaleAtField() {
+        const isScheduled = statusInput.value === 'scheduled';
+        saleAtField.classList.toggle('is-hidden', !isScheduled);
+        saleAtInput.required = isScheduled;
+    }
+
     document.querySelector('#locateButton').addEventListener('click', () => {
         if (!navigator.geolocation) {
             showNotice('Trình duyệt không hỗ trợ lấy vị trí hiện tại');
@@ -775,6 +797,8 @@
         setReportForm(false);
     });
 
+    statusInput.addEventListener('change', toggleSaleAtField);
+
     map.on('click', (event) => {
         if (!reportFormDrawer.classList.contains('open')) {
             return;
@@ -796,6 +820,7 @@
     });
 
     window.showNotice = showNotice;
+    toggleSaleAtField();
     filterReports();
 </script>
 </body>
