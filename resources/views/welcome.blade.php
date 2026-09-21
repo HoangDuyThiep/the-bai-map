@@ -448,7 +448,7 @@
             <button class="tab" id="closeFormButton" type="button">Đóng</button>
         </div>
 
-        <form class="report-form" method="POST" action="/reports">
+        <form class="report-form" method="POST" action="/reports" novalidate>
             @csrf
 
             @if ($errors->any())
