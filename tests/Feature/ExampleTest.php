@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\SalesReport;
 use App\Models\Store;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
@@ -152,5 +153,76 @@ class ExampleTest extends TestCase
 
         $response->assertSee('Visible Store');
         $response->assertDontSee('Hidden Store');
+    }
+
+    public function test_prune_command_deletes_only_old_hidden_reports(): void
+    {
+        $store = Store::create([
+            'name' => 'Prune Store',
+            'latitude' => 34.7043,
+            'longitude' => 135.4966,
+        ]);
+
+        $product = Product::create([
+            'name' => 'MEGAドリームex',
+            'is_active' => true,
+        ]);
+
+        $freshReport = SalesReport::create([
+            'store_id' => $store->id,
+            'product_id' => $product->id,
+            'quantity' => 0,
+            'quantity_text' => '5 pack',
+            'sale_type' => 'now',
+            'sale_at' => now(),
+            'expires_at' => now()->addHours(12),
+            'status' => 'active',
+        ]);
+
+        $oldExpiredReport = SalesReport::create([
+            'store_id' => $store->id,
+            'product_id' => $product->id,
+            'quantity' => 0,
+            'quantity_text' => '10 pack',
+            'sale_type' => 'now',
+            'sale_at' => now()->subDays(10),
+            'expires_at' => now()->subDays(8),
+            'status' => 'active',
+        ]);
+
+        $oldSoldOutReport = SalesReport::withoutTimestamps(fn () => SalesReport::create([
+            'store_id' => $store->id,
+            'product_id' => $product->id,
+            'quantity' => 0,
+            'quantity_text' => '1 box',
+            'sale_type' => 'now',
+            'sale_at' => now()->subDays(10),
+            'expires_at' => now()->addHours(12),
+            'status' => 'sold_out',
+            'created_at' => now()->subDays(8),
+            'updated_at' => now()->subDays(8),
+        ]));
+
+        Artisan::call('reports:prune');
+
+        $this->assertDatabaseHas(SalesReport::class, [
+            'id' => $freshReport->id,
+        ]);
+
+        $this->assertDatabaseMissing(SalesReport::class, [
+            'id' => $oldExpiredReport->id,
+        ]);
+
+        $this->assertDatabaseMissing(SalesReport::class, [
+            'id' => $oldSoldOutReport->id,
+        ]);
+
+        $this->assertDatabaseHas(Store::class, [
+            'id' => $store->id,
+        ]);
+
+        $this->assertDatabaseHas(Product::class, [
+            'id' => $product->id,
+        ]);
     }
 }
