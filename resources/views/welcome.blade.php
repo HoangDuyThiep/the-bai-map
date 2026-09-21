@@ -370,50 +370,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const reports = [
-        {
-            id: 1,
-            store: 'Joshin Hirakata',
-            address: 'Hirakata, Osaka',
-            lat: 34.8147,
-            lng: 135.6500,
-            product: 'MEGAドリームex',
-            quantity: 20,
-            saleAt: '2026/09/21 10:00',
-            updatedAgo: '5 phut truoc',
-            reporter: 'User A',
-            note: '1 nguoi toi da 1 BOX',
-            status: 'active',
-        },
-        {
-            id: 2,
-            store: 'Yodobashi Umeda',
-            address: 'Umeda, Osaka',
-            lat: 34.7043,
-            lng: 135.4966,
-            product: 'ロケット団の栄光',
-            quantity: 10,
-            saleAt: '2026/09/21 15:00',
-            updatedAgo: '18 phut truoc',
-            reporter: 'User B',
-            note: 'Xep hang truoc quay gachapon',
-            status: 'scheduled',
-        },
-        {
-            id: 3,
-            store: 'Pokemon Center Osaka',
-            address: 'Osaka Station City',
-            lat: 34.7024,
-            lng: 135.4959,
-            product: 'ブラックボルト',
-            quantity: 5,
-            saleAt: '2026/09/21 09:30',
-            updatedAgo: '2 gio truoc',
-            reporter: 'User C',
-            note: 'Thong tin can kiem tra lai',
-            status: 'expired',
-        },
-    ];
+    const reports = @json($reports);
 
     const statusLabels = {
         active: 'Dang ban',
