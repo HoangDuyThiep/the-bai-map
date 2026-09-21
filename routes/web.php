@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -78,6 +80,55 @@ Route::get('/rank', function () {
         'members' => $members,
     ]);
 })->middleware('auth')->name('rank');
+
+Route::get('/places/search', function (Request $request) {
+    abort_unless($request->user()->status === 'active', 403);
+
+    $validated = $request->validate([
+        'q' => ['required', 'string', 'min:2', 'max:120'],
+    ]);
+
+    $query = trim($validated['q']);
+    $cacheKey = 'place-search:' . md5(mb_strtolower($query));
+
+    $places = Cache::remember($cacheKey, now()->addDay(), function () use ($query) {
+        $response = Http::withHeaders([
+            'User-Agent' => 'TheBaiMap/1.0 (' . config('app.url') . ')',
+            'Accept-Language' => 'ja,vi,en',
+        ])
+            ->timeout(8)
+            ->get('https://nominatim.openstreetmap.org/search', [
+                'q' => $query,
+                'format' => 'jsonv2',
+                'limit' => 5,
+                'countrycodes' => 'jp',
+                'addressdetails' => 1,
+            ]);
+
+        if ($response->failed()) {
+            abort(502, 'Không thể tìm địa điểm lúc này.');
+        }
+
+        return collect($response->json())
+            ->map(function (array $place) {
+                return [
+                    'id' => $place['place_id'] ?? null,
+                    'name' => ($place['name'] ?? null) ?: ($place['display_name'] ?? 'Địa điểm'),
+                    'address' => $place['display_name'] ?? '',
+                    'lat' => (float) ($place['lat'] ?? 0),
+                    'lng' => (float) ($place['lon'] ?? 0),
+                    'type' => $place['type'] ?? null,
+                ];
+            })
+            ->filter(fn (array $place) => $place['lat'] && $place['lng'])
+            ->values()
+            ->all();
+    });
+
+    return response()->json([
+        'places' => $places,
+    ]);
+})->middleware('auth')->name('places.search');
 
 Route::post('/reports', function (Request $request) {
     abort_unless($request->user()->status === 'active', 403);

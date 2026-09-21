@@ -82,6 +82,57 @@
             background: transparent;
         }
 
+        .search-results {
+            position: absolute;
+            z-index: 540;
+            top: 68px;
+            left: 12px;
+            right: 68px;
+            display: none;
+            max-height: 310px;
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+            box-shadow: var(--shadow);
+        }
+
+        .search-results.open {
+            display: block;
+        }
+
+        .place-result {
+            display: grid;
+            gap: 4px;
+            width: 100%;
+            padding: 11px 13px;
+            border: 0;
+            border-bottom: 1px solid var(--line);
+            color: var(--text);
+            background: transparent;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .place-result:last-child {
+            border-bottom: 0;
+        }
+
+        .place-result:hover {
+            background: #eef3f8;
+        }
+
+        .place-result strong {
+            font-size: 14px;
+        }
+
+        .search-source {
+            padding: 8px 13px;
+            color: var(--muted);
+            background: #f8fafc;
+            font-size: 12px;
+        }
+
         .icon-button {
             display: inline-grid;
             place-items: center;
@@ -473,6 +524,8 @@
         <button class="icon-button" id="accountMenuButton" type="button" aria-label="Menu">☰</button>
     </div>
 
+    <section class="search-results" id="searchResults" aria-label="Kết quả tìm địa điểm"></section>
+
     <div class="account-menu" id="accountMenu">
         <div class="account-menu-header">{{ Auth::user()->name }}</div>
         @if (Auth::user()->isAdmin())
@@ -646,6 +699,7 @@
     const resultCount = document.querySelector('#resultCount');
     const notice = document.querySelector('#notice');
     const searchInput = document.querySelector('#searchInput');
+    const searchResults = document.querySelector('#searchResults');
     const accountMenu = document.querySelector('#accountMenu');
     const accountMenuButton = document.querySelector('#accountMenuButton');
     const latitudeInput = document.querySelector('#latitudeInput');
@@ -664,6 +718,8 @@
     const submitReportButton = document.querySelector('#submitReportButton');
     let userMarker = null;
     let draftStoreMarker = null;
+    let selectedPlace = null;
+    let selectedPlaceMarker = null;
     const markerById = new Map();
 
     function escapeHtml(value) {
@@ -681,7 +737,7 @@
             className: '',
             html: `
                 <div class="map-marker ${report.status}">
-                    <div class="qty">${report.quantityText}</div>
+                    <div class="qty">${escapeHtml(report.quantityText)}</div>
                 </div>
             `,
             iconSize: [56, 56],
@@ -758,6 +814,86 @@
 
         renderMarkers(items);
         renderList(items);
+    }
+
+    function renderSearchResults(places) {
+        if (!places.length) {
+            searchResults.innerHTML = `
+                <div class="search-source">Không tìm thấy địa điểm phù hợp.</div>
+            `;
+            searchResults.classList.add('open');
+            return;
+        }
+
+        searchResults.innerHTML = `
+            ${places.map((place, index) => `
+                <button class="place-result" type="button" data-index="${index}">
+                    <strong>${escapeHtml(place.name)}</strong>
+                    <span class="meta">${escapeHtml(place.address)}</span>
+                </button>
+            `).join('')}
+            <div class="search-source">Kết quả từ OpenStreetMap</div>
+        `;
+        searchResults.classList.add('open');
+    }
+
+    async function searchPlaces() {
+        const keyword = searchInput.value.trim();
+
+        if (keyword.length < 2) {
+            showNotice('Nhập ít nhất 2 ký tự để tìm địa điểm');
+            return;
+        }
+
+        showNotice('Đang tìm địa điểm...');
+
+        try {
+            const response = await fetch(`/places/search?q=${encodeURIComponent(keyword)}`, {
+                headers: {
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Search failed');
+            }
+
+            const data = await response.json();
+            searchResults.places = data.places ?? [];
+            renderSearchResults(searchResults.places);
+        } catch (error) {
+            searchResults.classList.remove('open');
+            showNotice('Không thể tìm địa điểm lúc này');
+        }
+    }
+
+    function fillPlaceToForm(place) {
+        storeNameInput.value = place.name ?? '';
+        addressInput.value = place.address ?? '';
+        setDraftStoreLocation({
+            lat: place.lat,
+            lng: place.lng,
+        });
+    }
+
+    function selectPlace(place) {
+        selectedPlace = place;
+        const latLng = [place.lat, place.lng];
+
+        if (selectedPlaceMarker) {
+            selectedPlaceMarker.setLatLng(latLng);
+        } else {
+            selectedPlaceMarker = L.marker(latLng).addTo(map);
+        }
+
+        selectedPlaceMarker
+            .bindPopup(`<strong>${escapeHtml(place.name)}</strong><br>${escapeHtml(place.address)}`)
+            .openPopup();
+
+        map.setView(latLng, 16);
+        setDrawer(false);
+        searchResults.classList.remove('open');
+        showNotice('Đã chọn địa điểm. Bấm + để đăng thông tin tại đây.');
     }
 
     function openReport(id) {
@@ -906,6 +1042,9 @@
 
     document.querySelector('#addButton').addEventListener('click', () => {
         resetReportForm();
+        if (selectedPlace) {
+            fillPlaceToForm(selectedPlace);
+        }
         setReportForm(true);
     });
 
@@ -952,7 +1091,31 @@
 
     mapTab.addEventListener('click', () => setDrawer(false));
     listTab.addEventListener('click', () => setDrawer(true));
-    searchInput.addEventListener('input', filterReports);
+    searchInput.addEventListener('input', () => {
+        searchResults.classList.remove('open');
+        filterReports();
+    });
+
+    searchInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') {
+            return;
+        }
+
+        event.preventDefault();
+        searchPlaces();
+    });
+
+    searchResults.addEventListener('click', (event) => {
+        const button = event.target.closest('.place-result');
+        if (!button) {
+            return;
+        }
+
+        const place = searchResults.places?.[Number(button.dataset.index)];
+        if (place) {
+            selectPlace(place);
+        }
+    });
 
     storeList.addEventListener('click', (event) => {
         const card = event.target.closest('.store-card');
