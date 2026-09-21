@@ -38,4 +38,9 @@ class SalesReport extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function helpfulVotes()
+    {
+        return $this->hasMany(ReportHelpfulVote::class);
+    }
 }

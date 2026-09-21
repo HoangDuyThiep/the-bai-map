@@ -39,4 +39,14 @@ class User extends Authenticatable
     {
         return $this->status === 'active';
     }
+
+    public function salesReports()
+    {
+        return $this->hasMany(SalesReport::class);
+    }
+
+    public function helpfulVotes()
+    {
+        return $this->hasMany(ReportHelpfulVote::class);
+    }
 }

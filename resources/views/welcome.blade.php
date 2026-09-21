@@ -143,7 +143,7 @@
             position: absolute;
             z-index: 500;
             right: 14px;
-            bottom: 94px;
+            bottom: calc(94px + env(safe-area-inset-bottom));
             display: grid;
             gap: 10px;
         }
@@ -156,7 +156,8 @@
             bottom: 0;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            height: 66px;
+            height: calc(66px + env(safe-area-inset-bottom));
+            padding-bottom: env(safe-area-inset-bottom);
             border-top: 1px solid var(--line);
             background: rgba(255, 255, 255, .96);
             backdrop-filter: blur(10px);
@@ -179,7 +180,7 @@
             z-index: 520;
             left: 10px;
             right: 10px;
-            bottom: 76px;
+            bottom: calc(76px + env(safe-area-inset-bottom));
             max-height: 54vh;
             overflow: auto;
             transform: translateY(calc(100% + 90px));
@@ -428,7 +429,7 @@
             z-index: 550;
             left: 14px;
             right: 14px;
-            bottom: 156px;
+            bottom: calc(156px + env(safe-area-inset-bottom));
             display: none;
             padding: 10px 12px;
             border-radius: 8px;
@@ -477,6 +478,7 @@
         @if (Auth::user()->isAdmin())
             <a href="{{ route('admin.users') }}">Duyệt thành viên</a>
         @endif
+        <a href="{{ route('rank') }}">Bảng xếp hạng</a>
         <a href="{{ route('profile.edit') }}">Hồ sơ</a>
         <form method="POST" action="{{ route('logout') }}">
             @csrf
@@ -503,8 +505,9 @@
             <button class="tab" id="closeFormButton" type="button">Đóng</button>
         </div>
 
-        <form class="report-form" method="POST" action="/reports" novalidate>
+        <form class="report-form" id="reportForm" method="POST" action="{{ route('reports.store') }}" novalidate>
             @csrf
+            <input id="methodInput" type="hidden" name="_method" value="">
 
             @if ($errors->any())
                 <div class="form-errors" role="alert">
@@ -517,7 +520,7 @@
 
             <label>
                 Tên cửa hàng
-                <input name="store_name" type="text" required placeholder="Joshin Hirakata" value="{{ old('store_name') }}">
+                <input name="store_name" id="storeNameInput" type="text" required placeholder="Joshin Hirakata" value="{{ old('store_name') }}">
                 @error('store_name')
                     <span class="field-error">{{ $message }}</span>
                 @enderror
@@ -525,7 +528,7 @@
 
             <label>
                 Địa chỉ
-                <input name="address" type="text" placeholder="Hirakata, Osaka" value="{{ old('address') }}">
+                <input name="address" id="addressInput" type="text" placeholder="Hirakata, Osaka" value="{{ old('address') }}">
                 @error('address')
                     <span class="field-error">{{ $message }}</span>
                 @enderror
@@ -555,7 +558,7 @@
 
             <label>
                 Sản phẩm
-                <input name="product_name" type="text" required placeholder="MEGAドリームex" value="{{ old('product_name') }}">
+                <input name="product_name" id="productNameInput" type="text" required placeholder="MEGAドリームex" value="{{ old('product_name') }}">
                 @error('product_name')
                     <span class="field-error">{{ $message }}</span>
                 @enderror
@@ -563,7 +566,7 @@
 
             <label>
                 Số lượng
-                <input name="quantity_text" type="text" required placeholder="1 box hoặc 5 pack" value="{{ old('quantity_text') }}">
+                <input name="quantity_text" id="quantityTextInput" type="text" required placeholder="1 box hoặc 5 pack" value="{{ old('quantity_text') }}">
                 @error('quantity_text')
                     <span class="field-error">{{ $message }}</span>
                 @enderror
@@ -591,13 +594,13 @@
 
             <label>
                 Ghi chú
-                <textarea name="note" rows="3" placeholder="Mỗi người tối đa 5 pack">{{ old('note') }}</textarea>
+                <textarea name="note" id="noteInput" rows="3" placeholder="Mỗi người tối đa 5 pack">{{ old('note') }}</textarea>
                 @error('note')
                     <span class="field-error">{{ $message }}</span>
                 @enderror
             </label>
 
-            <button class="primary-button" type="submit">Đăng thông tin</button>
+            <button class="primary-button" id="submitReportButton" type="submit">Đăng thông tin</button>
         </form>
     </section>
 
@@ -612,6 +615,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     const reports = @json($reports);
+    const csrfToken = @json(csrf_token());
+    const flashStatus = @json(session('status'));
 
     const statusLabels = {
         active: 'Đang bán',
@@ -645,13 +650,31 @@
     const accountMenuButton = document.querySelector('#accountMenuButton');
     const latitudeInput = document.querySelector('#latitudeInput');
     const longitudeInput = document.querySelector('#longitudeInput');
+    const reportForm = document.querySelector('#reportForm');
+    const methodInput = document.querySelector('#methodInput');
+    const storeNameInput = document.querySelector('#storeNameInput');
+    const addressInput = document.querySelector('#addressInput');
+    const productNameInput = document.querySelector('#productNameInput');
+    const quantityTextInput = document.querySelector('#quantityTextInput');
     const useCurrentLocationButton = document.querySelector('#useCurrentLocationButton');
     const statusInput = document.querySelector('#statusInput');
     const saleAtField = document.querySelector('#saleAtField');
     const saleAtInput = document.querySelector('#saleAtInput');
+    const noteInput = document.querySelector('#noteInput');
+    const submitReportButton = document.querySelector('#submitReportButton');
     let userMarker = null;
     let draftStoreMarker = null;
     const markerById = new Map();
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;',
+        }[character]));
+    }
 
     function markerIcon(report) {
         return L.divIcon({
@@ -674,17 +697,22 @@
     function popupHtml(report) {
         return `
             <div class="popup">
-                <h2>${report.store}</h2>
+                <h2>${escapeHtml(report.store)}</h2>
                 <dl>
-                    <dt>Sản phẩm</dt><dd>${report.product}</dd>
-                    <dt>Số lượng</dt><dd>${report.quantityText}</dd>
-                    <dt>Thời gian</dt><dd>${report.saleAt}</dd>
-                    <dt>Người báo</dt><dd>${report.reporter}</dd>
-                    <dt>Cập nhật</dt><dd>${report.updatedAgo}</dd>
-                    <dt>Ghi chú</dt><dd>${report.note ?? ''}</dd>
+                    <dt>Sản phẩm</dt><dd>${escapeHtml(report.product)}</dd>
+                    <dt>Số lượng</dt><dd>${escapeHtml(report.quantityText)}</dd>
+                    <dt>Thời gian</dt><dd>${escapeHtml(report.saleAt)}</dd>
+                    <dt>Người báo</dt><dd>${escapeHtml(report.reporter)}</dd>
+                    <dt>Cập nhật</dt><dd>${escapeHtml(report.updatedAt)}</dd>
+                    <dt>Hữu ích</dt><dd>${report.helpfulCount}</dd>
+                    <dt>Ghi chú</dt><dd>${escapeHtml(report.note)}</dd>
                 </dl>
                 <a href="${directionsUrl(report)}" target="_blank" rel="noopener">Google Mapsで経路案内</a>
-                <button type="button" onclick="showNotice('Chức năng cập nhật sẽ làm ở bước tiếp theo')">Cập nhật thông tin</button>
+                <form method="POST" action="/reports/${report.id}/helpful">
+                    <input type="hidden" name="_token" value="${csrfToken}">
+                    <button type="submit">Hữu ích</button>
+                </form>
+                <button type="button" onclick="openReportEditor(${report.id})">Cập nhật thông tin</button>
             </div>
         `;
     }
@@ -704,14 +732,15 @@
     }
 
     function renderList(items) {
-        resultCount.textContent = `${items.length} điểm`;
+        resultCount.textContent = `${items.length} bài`;
         storeList.innerHTML = items.map((report) => `
             <button class="store-card" type="button" data-id="${report.id}">
-                <strong>${report.store}</strong>
-                <span class="meta">${report.product} · ${report.quantityText} · ${report.saleAt}</span>
+                <strong>${escapeHtml(report.store)}</strong>
+                <span class="meta">${escapeHtml(report.product)} · ${escapeHtml(report.quantityText)} · ${escapeHtml(report.saleAt)}</span>
                 <span class="badge-row">
                     <span class="badge ${report.status}">${statusLabels[report.status]}</span>
-                    <span class="meta">${report.updatedAgo}</span>
+                    <span class="meta">Cập nhật ${escapeHtml(report.updatedAt)}</span>
+                    <span class="meta">Hữu ích ${report.helpfulCount}</span>
                 </span>
             </button>
         `).join('');
@@ -724,7 +753,7 @@
                 report.store,
                 report.address,
                 report.product,
-            ].some((value) => value.toLowerCase().includes(keyword));
+            ].some((value) => String(value ?? '').toLowerCase().includes(keyword));
         });
 
         renderMarkers(items);
@@ -758,6 +787,48 @@
             listDrawer.classList.remove('open');
             showNotice('Bấm vào bản đồ để chọn vị trí cửa hàng');
         }
+    }
+
+    function resetReportForm() {
+        reportForm.action = @json(route('reports.store'));
+        methodInput.value = '';
+        storeNameInput.value = '';
+        addressInput.value = '';
+        latitudeInput.value = '';
+        longitudeInput.value = '';
+        productNameInput.value = '';
+        quantityTextInput.value = '';
+        statusInput.value = 'active';
+        saleAtInput.value = '';
+        noteInput.value = '';
+        submitReportButton.textContent = 'Đăng thông tin';
+        toggleSaleAtField();
+    }
+
+    function openReportEditor(id) {
+        const report = reports.find((item) => item.id === id);
+        if (!report) {
+            return;
+        }
+
+        reportForm.action = `/reports/${report.id}`;
+        methodInput.value = 'PATCH';
+        storeNameInput.value = report.store ?? '';
+        addressInput.value = report.address ?? '';
+        latitudeInput.value = report.lat;
+        longitudeInput.value = report.lng;
+        productNameInput.value = report.product ?? '';
+        quantityTextInput.value = report.quantityText ?? '';
+        statusInput.value = report.status ?? 'active';
+        saleAtInput.value = report.saleAtInput ?? '';
+        noteInput.value = report.note ?? '';
+        submitReportButton.textContent = 'Cập nhật thông tin';
+        toggleSaleAtField();
+        setDraftStoreLocation({
+            lat: report.lat,
+            lng: report.lng,
+        });
+        setReportForm(true);
     }
 
     function setDraftStoreLocation(latLng) {
@@ -794,7 +865,7 @@
         saleAtInput.required = isScheduled;
     }
 
-    document.querySelector('#locateButton').addEventListener('click', () => {
+    function locateUser({ setView = true, openPopup = true } = {}) {
         if (!navigator.geolocation) {
             showNotice('Trình duyệt không hỗ trợ lấy vị trí hiện tại');
             return;
@@ -814,17 +885,27 @@
                 }).addTo(map).bindPopup('Bạn đang ở đây');
             }
 
-            map.setView(latLng, 15);
-            userMarker.openPopup();
+            if (setView) {
+                map.setView(latLng, 15);
+            }
+
+            if (openPopup) {
+                userMarker.openPopup();
+            }
         }, () => {
             showNotice('Không thể lấy vị trí. Hãy cho phép location trong trình duyệt.');
         }, {
             enableHighAccuracy: true,
             timeout: 10000,
         });
+    }
+
+    document.querySelector('#locateButton').addEventListener('click', () => {
+        locateUser();
     });
 
     document.querySelector('#addButton').addEventListener('click', () => {
+        resetReportForm();
         setReportForm(true);
     });
 
@@ -880,9 +961,15 @@
         }
     });
 
+    window.openReportEditor = openReportEditor;
     window.showNotice = showNotice;
     toggleSaleAtField();
     filterReports();
+    locateUser({ setView: true, openPopup: false });
+
+    if (flashStatus) {
+        showNotice(flashStatus);
+    }
 </script>
 </body>
 </html>
