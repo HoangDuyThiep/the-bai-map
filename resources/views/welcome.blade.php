@@ -96,6 +96,49 @@
             pointer-events: auto;
         }
 
+        .account-menu {
+            position: absolute;
+            z-index: 560;
+            top: 68px;
+            right: 12px;
+            display: none;
+            min-width: 210px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .account-menu.open {
+            display: block;
+        }
+
+        .account-menu-header,
+        .account-menu a,
+        .account-menu button {
+            display: block;
+            width: 100%;
+            padding: 11px 13px;
+            border: 0;
+            color: var(--text);
+            background: transparent;
+            text-align: left;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .account-menu-header {
+            border-bottom: 1px solid var(--line);
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .account-menu a:hover,
+        .account-menu button:hover {
+            background: #eef3f8;
+        }
+
         .actions {
             position: absolute;
             z-index: 500;
@@ -426,7 +469,19 @@
             <span aria-hidden="true">🔍</span>
             <input id="searchInput" type="search" placeholder="Tìm cửa hàng">
         </label>
-        <button class="icon-button" type="button" aria-label="Menu">☰</button>
+        <button class="icon-button" id="accountMenuButton" type="button" aria-label="Menu">☰</button>
+    </div>
+
+    <div class="account-menu" id="accountMenu">
+        <div class="account-menu-header">{{ Auth::user()->name }}</div>
+        @if (Auth::user()->isAdmin())
+            <a href="{{ route('admin.users') }}">Duyệt thành viên</a>
+        @endif
+        <a href="{{ route('profile.edit') }}">Hồ sơ</a>
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+            <button type="submit">Đăng xuất</button>
+        </form>
     </div>
 
     <div class="actions" aria-label="Tác vụ nhanh">
@@ -586,6 +641,8 @@
     const resultCount = document.querySelector('#resultCount');
     const notice = document.querySelector('#notice');
     const searchInput = document.querySelector('#searchInput');
+    const accountMenu = document.querySelector('#accountMenu');
+    const accountMenuButton = document.querySelector('#accountMenuButton');
     const latitudeInput = document.querySelector('#latitudeInput');
     const longitudeInput = document.querySelector('#longitudeInput');
     const useCurrentLocationButton = document.querySelector('#useCurrentLocationButton');
@@ -769,6 +826,10 @@
 
     document.querySelector('#addButton').addEventListener('click', () => {
         setReportForm(true);
+    });
+
+    accountMenuButton.addEventListener('click', () => {
+        accountMenu.classList.toggle('open');
     });
 
     useCurrentLocationButton.addEventListener('click', () => {

@@ -1,13 +1,23 @@
 <?php
 
+use App\Http\Controllers\ProfileController;
 use App\Models\Product;
 use App\Models\SalesReport;
 use App\Models\Store;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    $reports = SalesReport::with(['store', 'product'])
+    $user = Auth::user();
+
+    if ($user->status !== 'active') {
+        return view('pending-approval');
+    }
+
+    $reports = SalesReport::with(['store', 'product', 'user'])
         ->whereIn('status', ['active', 'scheduled'])
         ->where(function ($query) {
             $query->whereNull('expires_at')
@@ -36,9 +46,15 @@ Route::get('/', function () {
     return view('welcome', [
         'reports' => $reports,
     ]);
-});
+})->middleware('auth')->name('map');
+
+Route::get('/dashboard', fn () => redirect()->route('map'))
+    ->middleware('auth')
+    ->name('dashboard');
 
 Route::post('/reports', function (Request $request) {
+    abort_unless($request->user()->status === 'active', 403);
+
     $validated = $request->validate([
         'store_name' => ['required', 'string', 'max:255'],
         'address' => ['nullable', 'string', 'max:255'],
@@ -73,6 +89,7 @@ Route::post('/reports', function (Request $request) {
         'address' => $validated['address'] ?? null,
         'latitude' => $validated['latitude'],
         'longitude' => $validated['longitude'],
+        'created_by' => $request->user()->id,
     ]);
 
     $product = Product::firstOrCreate(
@@ -90,14 +107,40 @@ Route::post('/reports', function (Request $request) {
     SalesReport::create([
         'store_id' => $store->id,
         'product_id' => $product->id,
+        'user_id' => $request->user()->id,
         'quantity' => 0,
         'quantity_text' => $validated['quantity_text'],
         'sale_type' => $validated['status'] === 'scheduled' ? 'scheduled' : 'now',
         'sale_at' => $saleAt,
-        'expires_at' => \Illuminate\Support\Carbon::parse($saleAt)->addHours(12),
+        'expires_at' => Carbon::parse($saleAt)->addHours(12),
         'note' => $validated['note'] ?? null,
         'status' => $validated['status'],
     ]);
 
-    return redirect('/');
+    return redirect()->route('map');
+})->middleware('auth')->name('reports.store');
+
+Route::get('/admin/users', function () {
+    abort_unless(Auth::user()->isAdmin(), 403);
+
+    return view('admin.users', [
+        'pendingUsers' => User::where('status', 'pending')->latest()->get(),
+        'activeUsers' => User::where('status', 'active')->latest()->get(),
+    ]);
+})->middleware('auth')->name('admin.users');
+
+Route::patch('/admin/users/{user}/approve', function (User $user) {
+    abort_unless(Auth::user()->isAdmin(), 403);
+
+    $user->update(['status' => 'active']);
+
+    return redirect()->route('admin.users')->with('status', 'Đã duyệt thành viên.');
+})->middleware('auth')->name('admin.users.approve');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+require __DIR__.'/auth.php';

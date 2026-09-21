@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\SalesReport;
 use App\Models\Store;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
@@ -15,14 +16,18 @@ class ExampleTest extends TestCase
 
     public function test_the_application_returns_a_successful_response(): void
     {
-        $response = $this->get('/');
+        $response = $this
+            ->actingAs(User::factory()->create())
+            ->get('/');
 
         $response->assertStatus(200);
     }
 
     public function test_user_can_create_a_sales_report_from_the_map_form(): void
     {
-        $response = $this->post('/reports', [
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post('/reports', [
             'store_name' => 'Joshin Test',
             'address' => 'Osaka',
             'latitude' => 34.7043,
@@ -47,6 +52,7 @@ class ExampleTest extends TestCase
         $this->assertDatabaseHas(SalesReport::class, [
             'quantity_text' => '5 pack',
             'status' => 'active',
+            'user_id' => $user->id,
         ]);
 
         $report = SalesReport::first();
@@ -57,7 +63,7 @@ class ExampleTest extends TestCase
 
     public function test_scheduled_report_requires_sale_time(): void
     {
-        $response = $this->from('/')->post('/reports', [
+        $response = $this->actingAs(User::factory()->create())->from('/')->post('/reports', [
             'store_name' => 'Joshin Test',
             'latitude' => 34.7043,
             'longitude' => 135.4966,
@@ -74,7 +80,7 @@ class ExampleTest extends TestCase
     {
         $saleAt = now()->addHours(2)->format('Y-m-d H:i:s');
 
-        $response = $this->post('/reports', [
+        $response = $this->actingAs(User::factory()->create())->post('/reports', [
             'store_name' => 'Scheduled Store',
             'latitude' => 34.7043,
             'longitude' => 135.4966,
@@ -92,7 +98,7 @@ class ExampleTest extends TestCase
             'status' => 'scheduled',
         ]);
 
-        $response = $this->get('/');
+        $response = $this->actingAs(User::factory()->create())->get('/');
 
         $response->assertSee('Scheduled Store');
     }
@@ -149,7 +155,7 @@ class ExampleTest extends TestCase
             'status' => 'active',
         ]);
 
-        $response = $this->get('/');
+        $response = $this->actingAs(User::factory()->create())->get('/');
 
         $response->assertSee('Visible Store');
         $response->assertDontSee('Hidden Store');
@@ -223,6 +229,88 @@ class ExampleTest extends TestCase
 
         $this->assertDatabaseHas(Product::class, [
             'id' => $product->id,
+        ]);
+    }
+
+    public function test_pending_user_sees_approval_screen(): void
+    {
+        $user = User::factory()->create([
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertOk();
+        $response->assertSee('Tài khoản đang chờ duyệt');
+    }
+
+    public function test_admin_can_approve_pending_user(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+
+        $pendingUser = User::factory()->create([
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('admin.users.approve', $pendingUser));
+
+        $response->assertRedirect(route('admin.users'));
+        $this->assertDatabaseHas(User::class, [
+            'id' => $pendingUser->id,
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_first_registered_user_becomes_active_admin_and_next_user_is_pending(): void
+    {
+        $this->post('/register', [
+            'name' => 'Admin User',
+            'email' => 'admin@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $this->assertDatabaseHas(User::class, [
+            'email' => 'admin@example.com',
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+
+        auth()->logout();
+
+        $this->post('/register', [
+            'name' => 'Member User',
+            'email' => 'member@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $this->assertDatabaseHas(User::class, [
+            'email' => 'member@example.com',
+            'role' => 'member',
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_make_admin_command_promotes_user(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'member@example.com',
+            'role' => 'member',
+            'status' => 'pending',
+        ]);
+
+        Artisan::call('users:make-admin', [
+            'email' => $user->email,
+        ]);
+
+        $this->assertDatabaseHas(User::class, [
+            'id' => $user->id,
+            'role' => 'admin',
+            'status' => 'active',
         ]);
     }
 }
