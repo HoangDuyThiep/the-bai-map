@@ -220,7 +220,7 @@
         .map-marker {
             display: grid;
             place-items: center;
-            min-width: 50px;
+            min-width: 58px;
             min-height: 50px;
             padding: 6px 8px;
             border: 2px solid #ffffff;
@@ -241,8 +241,10 @@
         }
 
         .map-marker .qty {
-            font-size: 17px;
+            font-size: 14px;
             font-weight: 800;
+            max-width: 74px;
+            overflow-wrap: anywhere;
         }
 
         .map-marker .unit {
@@ -298,6 +300,65 @@
             background: #e6edf5;
         }
 
+        .report-form {
+            display: grid;
+            gap: 12px;
+            padding: 12px;
+        }
+
+        .report-form label {
+            display: grid;
+            gap: 6px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .report-form input,
+        .report-form select,
+        .report-form textarea {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 10px 11px;
+            color: var(--text);
+            background: #ffffff;
+            outline: 0;
+        }
+
+        .report-form input:focus,
+        .report-form select:focus,
+        .report-form textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, .16);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .primary-button,
+        .secondary-button {
+            width: 100%;
+            border: 0;
+            border-radius: 8px;
+            padding: 11px 12px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .primary-button {
+            color: #ffffff;
+            background: var(--accent-strong);
+        }
+
+        .secondary-button {
+            color: var(--text);
+            background: #e6edf5;
+        }
+
         .notice {
             position: absolute;
             z-index: 550;
@@ -342,29 +403,101 @@
     <div class="top-bar">
         <label class="search" aria-label="Tim cua hang">
             <span aria-hidden="true">🔍</span>
-            <input id="searchInput" type="search" placeholder="Tim cua hang">
+            <input id="searchInput" type="search" placeholder="Tìm cửa hàng">
         </label>
         <button class="icon-button" type="button" aria-label="Menu">☰</button>
     </div>
 
-    <div class="actions" aria-label="Tac vu nhanh">
-        <button class="icon-button" id="locateButton" type="button" aria-label="Ve vi tri hien tai">◎</button>
-        <button class="icon-button" id="addButton" type="button" aria-label="Them dia diem">＋</button>
+    <div class="actions" aria-label="Tác vụ nhanh">
+        <button class="icon-button" id="locateButton" type="button" aria-label="Về vị trí hiện tại">◎</button>
+        <button class="icon-button" id="addButton" type="button" aria-label="Thêm địa điểm">＋</button>
     </div>
 
-    <section class="drawer" id="listDrawer" aria-label="Danh sach diem ban">
+    <section class="drawer" id="listDrawer" aria-label="Danh sách điểm bán">
         <div class="drawer-header">
-            <h1 class="drawer-title">Diem ban dang co thong tin</h1>
+            <h1 class="drawer-title">Điểm bán đang có thông tin</h1>
             <span class="meta" id="resultCount"></span>
         </div>
         <div class="store-list" id="storeList"></div>
     </section>
 
+    <section class="drawer" id="reportFormDrawer" aria-label="Thêm thông tin bán hàng">
+        <div class="drawer-header">
+            <h1 class="drawer-title">Thêm thông tin</h1>
+            <button class="tab" id="closeFormButton" type="button">Đóng</button>
+        </div>
+
+        <form class="report-form" method="POST" action="/reports">
+            @csrf
+
+            <label>
+                Tên cửa hàng
+                <input name="store_name" type="text" required placeholder="Joshin Hirakata">
+            </label>
+
+            <label>
+                Địa chỉ
+                <input name="address" type="text" placeholder="Hirakata, Osaka">
+            </label>
+
+            <div class="form-grid">
+                <label>
+                    Latitude
+                    <input name="latitude" id="latitudeInput" type="number" step="0.0000001" required>
+                </label>
+
+                <label>
+                    Longitude
+                    <input name="longitude" id="longitudeInput" type="number" step="0.0000001" required>
+                </label>
+            </div>
+
+            <button class="secondary-button" id="useCurrentLocationButton" type="button">
+                Lấy vị trí hiện tại
+            </button>
+
+            <label>
+                Sản phẩm
+                <input name="product_name" type="text" required placeholder="MEGAドリームex">
+            </label>
+
+            <label>
+                Số lượng
+                <input name="quantity_text" type="text" required placeholder="1 box hoặc 5 pack">
+            </label>
+
+            <label>
+                Thời gian
+                <select name="sale_type" id="saleTypeInput" required>
+                    <option value="now">Đang bán</option>
+                    <option value="scheduled">Chỉ định thời gian</option>
+                </select>
+            </label>
+
+            <label>
+                Giờ bán
+                <input name="sale_at" type="datetime-local">
+            </label>
+
+            <label>
+                Hết hạn
+                <input name="expires_at" type="datetime-local">
+            </label>
+
+            <label>
+                Ghi chú
+                <textarea name="note" rows="3" placeholder="Mỗi người tối đa 5 pack"></textarea>
+            </label>
+
+            <button class="primary-button" type="submit">Đăng thông tin</button>
+        </form>
+    </section>
+
     <div class="notice" id="notice" role="status"></div>
 
-    <nav class="bottom-tabs" aria-label="Che do xem">
+    <nav class="bottom-tabs" aria-label="Chế độ xem">
         <button class="tab active" id="mapTab" type="button">🗺 MAP</button>
-        <button class="tab" id="listTab" type="button">📋 DANH SACH</button>
+        <button class="tab" id="listTab" type="button">📋 DANH SÁCH</button>
     </nav>
 </main>
 
@@ -373,9 +506,9 @@
     const reports = @json($reports);
 
     const statusLabels = {
-        active: 'Dang ban',
-        scheduled: 'Sap ban',
-        expired: 'Het han',
+        active: 'Đang bán',
+        scheduled: 'Sắp bán',
+        expired: 'Hết hạn',
     };
 
     const map = L.map('map', {
@@ -392,13 +525,19 @@
     }).addTo(map);
 
     const listDrawer = document.querySelector('#listDrawer');
+    const reportFormDrawer = document.querySelector('#reportFormDrawer');
+    const closeFormButton = document.querySelector('#closeFormButton');
     const mapTab = document.querySelector('#mapTab');
     const listTab = document.querySelector('#listTab');
     const storeList = document.querySelector('#storeList');
     const resultCount = document.querySelector('#resultCount');
     const notice = document.querySelector('#notice');
     const searchInput = document.querySelector('#searchInput');
+    const latitudeInput = document.querySelector('#latitudeInput');
+    const longitudeInput = document.querySelector('#longitudeInput');
+    const useCurrentLocationButton = document.querySelector('#useCurrentLocationButton');
     let userMarker = null;
+    let draftStoreMarker = null;
     const markerById = new Map();
 
     function markerIcon(report) {
@@ -406,8 +545,7 @@
             className: '',
             html: `
                 <div class="map-marker ${report.status}">
-                    <div class="qty">${report.quantity}</div>
-                    <div class="unit">BOX</div>
+                    <div class="qty">${report.quantityText}</div>
                 </div>
             `,
             iconSize: [56, 56],
@@ -425,15 +563,15 @@
             <div class="popup">
                 <h2>${report.store}</h2>
                 <dl>
-                    <dt>San pham</dt><dd>${report.product}</dd>
-                    <dt>So luong</dt><dd>${report.quantity} BOX</dd>
-                    <dt>Thoi gian</dt><dd>${report.saleAt}</dd>
-                    <dt>Nguoi bao</dt><dd>${report.reporter}</dd>
-                    <dt>Cap nhat</dt><dd>${report.updatedAgo}</dd>
-                    <dt>Ghi chu</dt><dd>${report.note}</dd>
+                    <dt>Sản phẩm</dt><dd>${report.product}</dd>
+                    <dt>Số lượng</dt><dd>${report.quantityText}</dd>
+                    <dt>Thời gian</dt><dd>${report.saleAt}</dd>
+                    <dt>Người báo</dt><dd>${report.reporter}</dd>
+                    <dt>Cập nhật</dt><dd>${report.updatedAgo}</dd>
+                    <dt>Ghi chú</dt><dd>${report.note ?? ''}</dd>
                 </dl>
                 <a href="${directionsUrl(report)}" target="_blank" rel="noopener">Google Mapsで経路案内</a>
-                <button type="button" onclick="showNotice('Chuc nang cap nhat se lam o buoc tiep theo')">Cap nhat thong tin</button>
+                <button type="button" onclick="showNotice('Chức năng cập nhật sẽ làm ở bước tiếp theo')">Cập nhật thông tin</button>
             </div>
         `;
     }
@@ -453,11 +591,11 @@
     }
 
     function renderList(items) {
-        resultCount.textContent = `${items.length} diem`;
+        resultCount.textContent = `${items.length} điểm`;
         storeList.innerHTML = items.map((report) => `
             <button class="store-card" type="button" data-id="${report.id}">
                 <strong>${report.store}</strong>
-                <span class="meta">${report.product} · ${report.quantity} BOX · ${report.saleAt}</span>
+                <span class="meta">${report.product} · ${report.quantityText} · ${report.saleAt}</span>
                 <span class="badge-row">
                     <span class="badge ${report.status}">${statusLabels[report.status]}</span>
                     <span class="meta">${report.updatedAgo}</span>
@@ -494,8 +632,40 @@
 
     function setDrawer(open) {
         listDrawer.classList.toggle('open', open);
+        if (open) {
+            reportFormDrawer.classList.remove('open');
+        }
         listTab.classList.toggle('active', open);
         mapTab.classList.toggle('active', !open);
+    }
+
+    function setReportForm(open) {
+        reportFormDrawer.classList.toggle('open', open);
+        if (open) {
+            listDrawer.classList.remove('open');
+            showNotice('Bấm vào bản đồ để chọn vị trí cửa hàng');
+        }
+    }
+
+    function setDraftStoreLocation(latLng) {
+        latitudeInput.value = latLng.lat.toFixed(7);
+        longitudeInput.value = latLng.lng.toFixed(7);
+
+        if (draftStoreMarker) {
+            draftStoreMarker.setLatLng(latLng);
+        } else {
+            draftStoreMarker = L.marker(latLng, {
+                draggable: true,
+            }).addTo(map).bindPopup('Vị trí cửa hàng mới');
+
+            draftStoreMarker.on('dragend', () => {
+                const markerLatLng = draftStoreMarker.getLatLng();
+                latitudeInput.value = markerLatLng.lat.toFixed(7);
+                longitudeInput.value = markerLatLng.lng.toFixed(7);
+            });
+        }
+
+        draftStoreMarker.openPopup();
     }
 
     function showNotice(message) {
@@ -507,7 +677,7 @@
 
     document.querySelector('#locateButton').addEventListener('click', () => {
         if (!navigator.geolocation) {
-            showNotice('Trinh duyet khong ho tro lay vi tri hien tai');
+            showNotice('Trình duyệt không hỗ trợ lấy vị trí hiện tại');
             return;
         }
 
@@ -522,13 +692,13 @@
                     weight: 3,
                     fillColor: '#2563eb',
                     fillOpacity: 1,
-                }).addTo(map).bindPopup('Ban dang o day');
+                }).addTo(map).bindPopup('Bạn đang ở đây');
             }
 
             map.setView(latLng, 15);
             userMarker.openPopup();
         }, () => {
-            showNotice('Khong the lay vi tri. Hay cho phep location trong trinh duyet.');
+            showNotice('Không thể lấy vị trí. Hãy cho phép location trong trình duyệt.');
         }, {
             enableHighAccuracy: true,
             timeout: 10000,
@@ -536,7 +706,42 @@
     });
 
     document.querySelector('#addButton').addEventListener('click', () => {
-        showNotice('Buoc tiep theo se them form dang thong tin ban hang');
+        setReportForm(true);
+    });
+
+    useCurrentLocationButton.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+            showNotice('Trình duyệt không hỗ trợ lấy vị trí hiện tại');
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition((position) => {
+            latitudeInput.value = position.coords.latitude.toFixed(7);
+            longitudeInput.value = position.coords.longitude.toFixed(7);
+            setDraftStoreLocation({
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+            });
+            showNotice('Đã điền vị trí hiện tại vào form');
+        }, () => {
+            showNotice('Không thể lấy vị trí. Hãy cho phép location trong trình duyệt.');
+        }, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+        });
+    });
+
+    closeFormButton.addEventListener('click', () => {
+        setReportForm(false);
+    });
+
+    map.on('click', (event) => {
+        if (!reportFormDrawer.classList.contains('open')) {
+            return;
+        }
+
+        setDraftStoreLocation(event.latlng);
+        showNotice('Đã chọn vị trí cửa hàng trên bản đồ');
     });
 
     mapTab.addEventListener('click', () => setDrawer(false));

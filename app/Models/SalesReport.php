@@ -11,6 +11,7 @@ class SalesReport extends Model
         'product_id',
         'user_id',
         'quantity',
+        'quantity_text',
         'sale_type',
         'sale_at',
         'expires_at',
