@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>The Bai Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
@@ -17,6 +17,9 @@
             --warning: #f59e0b;
             --expired: #6b7280;
             --shadow: 0 12px 32px rgba(15, 23, 42, .18);
+            --app-height: 100dvh;
+            --bottom-safe: max(14px, env(safe-area-inset-bottom));
+            --tab-height: 66px;
         }
 
         * {
@@ -39,8 +42,8 @@
 
         .app {
             position: relative;
-            height: 100vh;
-            min-height: 620px;
+            height: var(--app-height);
+            min-height: 0;
             overflow: hidden;
         }
 
@@ -194,7 +197,7 @@
             position: absolute;
             z-index: 500;
             right: 14px;
-            bottom: calc(94px + env(safe-area-inset-bottom));
+            bottom: calc(var(--tab-height) + var(--bottom-safe) + 28px);
             display: grid;
             gap: 10px;
         }
@@ -207,8 +210,8 @@
             bottom: 0;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            height: calc(66px + env(safe-area-inset-bottom));
-            padding-bottom: env(safe-area-inset-bottom);
+            height: calc(var(--tab-height) + var(--bottom-safe));
+            padding-bottom: var(--bottom-safe);
             border-top: 1px solid var(--line);
             background: rgba(255, 255, 255, .96);
             backdrop-filter: blur(10px);
@@ -231,7 +234,7 @@
             z-index: 520;
             left: 10px;
             right: 10px;
-            bottom: calc(76px + env(safe-area-inset-bottom));
+            bottom: calc(var(--tab-height) + var(--bottom-safe) + 10px);
             max-height: 54vh;
             overflow: auto;
             transform: translateY(calc(100% + 90px));
@@ -480,7 +483,7 @@
             z-index: 550;
             left: 14px;
             right: 14px;
-            bottom: calc(156px + env(safe-area-inset-bottom));
+            bottom: calc(var(--tab-height) + var(--bottom-safe) + 90px);
             display: none;
             padding: 10px 12px;
             border-radius: 8px;
@@ -494,9 +497,15 @@
         }
 
         @media (min-width: 760px) {
+            :root {
+                --app-height: min(820px, calc(100vh - 32px));
+                --bottom-safe: 0px;
+            }
+
             .app {
                 max-width: 1120px;
-                height: min(820px, calc(100vh - 32px));
+                height: var(--app-height);
+                min-height: 620px;
                 margin: 16px auto;
                 border: 1px solid var(--line);
                 border-radius: 8px;
@@ -507,7 +516,7 @@
                 left: auto;
                 right: 14px;
                 width: 360px;
-                bottom: 92px;
+                bottom: calc(var(--tab-height) + 26px);
             }
         }
     </style>
@@ -677,6 +686,13 @@
         expired: 'Hết hạn',
     };
 
+    function updateAppHeight() {
+        const height = window.visualViewport?.height ?? window.innerHeight;
+        document.documentElement.style.setProperty('--app-height', `${height}px`);
+    }
+
+    updateAppHeight();
+
     const map = L.map('map', {
         zoomControl: false,
     }).setView([34.7043, 135.5050], 11);
@@ -689,6 +705,15 @@
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
+
+    function refreshViewportLayout() {
+        updateAppHeight();
+        window.setTimeout(() => map.invalidateSize(), 80);
+    }
+
+    window.addEventListener('resize', refreshViewportLayout);
+    window.visualViewport?.addEventListener('resize', refreshViewportLayout);
+    window.visualViewport?.addEventListener('scroll', refreshViewportLayout);
 
     const listDrawer = document.querySelector('#listDrawer');
     const reportFormDrawer = document.querySelector('#reportFormDrawer');
