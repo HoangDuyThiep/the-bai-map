@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\BlockedMemberEmail;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -36,14 +37,16 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        $email = mb_strtolower($request->email);
         $isFirstUser = User::query()->doesntExist();
+        $needsApproval = ! $isFirstUser && BlockedMemberEmail::where('email', $email)->exists();
 
         $user = User::create([
             'name' => $request->name,
-            'email' => $request->email,
+            'email' => $email,
             'password' => Hash::make($request->password),
             'role' => $isFirstUser ? 'admin' : 'member',
-            'status' => $isFirstUser ? 'active' : 'pending',
+            'status' => $needsApproval ? 'pending' : 'active',
         ]);
 
         event(new Registered($user));

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Models\BlockedMemberEmail;
 use App\Models\Product;
 use App\Models\ReportHelpfulVote;
 use App\Models\SalesReport;
@@ -311,6 +312,7 @@ Route::get('/admin/users', function () {
     return view('admin.users', [
         'pendingUsers' => User::where('status', 'pending')->latest()->get(),
         'activeUsers' => User::where('status', 'active')->latest()->get(),
+        'blockedEmails' => BlockedMemberEmail::latest()->get(),
     ]);
 })->middleware('auth')->name('admin.users');
 
@@ -318,9 +320,25 @@ Route::patch('/admin/users/{user}/approve', function (User $user) {
     abort_unless(Auth::user()->isAdmin(), 403);
 
     $user->update(['status' => 'active']);
+    BlockedMemberEmail::where('email', mb_strtolower($user->email))->delete();
 
     return redirect()->route('admin.users')->with('status', 'Đã duyệt thành viên.');
 })->middleware('auth')->name('admin.users.approve');
+
+Route::delete('/admin/users/{user}', function (User $user) {
+    abort_unless(Auth::user()->isAdmin(), 403);
+    abort_if($user->isAdmin(), 403, 'Không thể xóa tài khoản admin.');
+    abort_if($user->is(Auth::user()), 403, 'Không thể tự xóa tài khoản của mình.');
+
+    BlockedMemberEmail::updateOrCreate(
+        ['email' => mb_strtolower($user->email)],
+        ['blocked_by' => Auth::id()],
+    );
+
+    $user->delete();
+
+    return redirect()->route('admin.users')->with('status', 'Đã xóa thành viên. Nếu email này đăng ký lại, tài khoản sẽ cần duyệt.');
+})->middleware('auth')->name('admin.users.destroy');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

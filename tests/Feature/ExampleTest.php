@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\BlockedMemberEmail;
 use App\Models\SalesReport;
 use App\Models\Store;
 use App\Models\User;
@@ -264,7 +265,7 @@ class ExampleTest extends TestCase
         ]);
     }
 
-    public function test_first_registered_user_becomes_active_admin_and_next_user_is_pending(): void
+    public function test_first_registered_user_becomes_active_admin_and_next_user_is_active_member(): void
     {
         $this->post('/register', [
             'name' => 'Admin User',
@@ -283,6 +284,46 @@ class ExampleTest extends TestCase
 
         $this->post('/register', [
             'name' => 'Member User',
+            'email' => 'member@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $this->assertDatabaseHas(User::class, [
+            'email' => 'member@example.com',
+            'role' => 'member',
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_admin_can_delete_member_and_same_email_requires_approval_when_registering_again(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+
+        $member = User::factory()->create([
+            'email' => 'member@example.com',
+            'role' => 'member',
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($admin)->delete(route('admin.users.destroy', $member));
+
+        $response->assertRedirect(route('admin.users'));
+        $this->assertDatabaseMissing(User::class, [
+            'id' => $member->id,
+        ]);
+        $this->assertDatabaseHas(BlockedMemberEmail::class, [
+            'email' => 'member@example.com',
+            'blocked_by' => $admin->id,
+        ]);
+
+        auth()->logout();
+
+        $this->post('/register', [
+            'name' => 'Member Return',
             'email' => 'member@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',

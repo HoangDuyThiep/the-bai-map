@@ -25,11 +25,19 @@
                                     <p class="text-sm text-gray-500">{{ $user->email }}</p>
                                 </div>
 
-                                <form method="POST" action="{{ route('admin.users.approve', $user) }}">
-                                    @csrf
-                                    @method('PATCH')
-                                    <x-primary-button>Duyệt</x-primary-button>
-                                </form>
+                                <div class="flex items-center gap-2">
+                                    <form method="POST" action="{{ route('admin.users.approve', $user) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <x-primary-button>Duyệt</x-primary-button>
+                                    </form>
+
+                                    <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Xóa tài khoản này? Nếu email này đăng ký lại, tài khoản sẽ cần duyệt.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <x-danger-button>Xóa</x-danger-button>
+                                    </form>
+                                </div>
                             </div>
                         @empty
                             <p class="mt-4 text-gray-500">Không có tài khoản nào đang chờ duyệt.</p>
@@ -44,16 +52,43 @@
 
                     <div class="mt-4 divide-y divide-gray-100">
                         @foreach ($activeUsers as $user)
-                            <div class="py-4">
-                                <p class="font-medium text-gray-900">
-                                    {{ $user->name }}
-                                    @if ($user->role === 'admin')
-                                        <span class="ml-2 text-xs text-emerald-700">Admin</span>
-                                    @endif
-                                </p>
-                                <p class="text-sm text-gray-500">{{ $user->email }}</p>
+                            <div class="py-4 flex items-center justify-between gap-4">
+                                <div>
+                                    <p class="font-medium text-gray-900">
+                                        {{ $user->name }}
+                                        @if ($user->role === 'admin')
+                                            <span class="ml-2 text-xs text-emerald-700">Admin</span>
+                                        @endif
+                                    </p>
+                                    <p class="text-sm text-gray-500">{{ $user->email }}</p>
+                                </div>
+
+                                @if (! $user->isAdmin() && ! $user->is(Auth::user()))
+                                    <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Xóa tài khoản này? Nếu email này đăng ký lại, tài khoản sẽ cần duyệt.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <x-danger-button>Xóa</x-danger-button>
+                                    </form>
+                                @endif
                             </div>
                         @endforeach
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6">
+                    <h3 class="font-semibold text-lg text-gray-900">Email cần duyệt nếu đăng ký lại</h3>
+
+                    <div class="mt-4 divide-y divide-gray-100">
+                        @forelse ($blockedEmails as $blockedEmail)
+                            <div class="py-3">
+                                <p class="font-medium text-gray-900">{{ $blockedEmail->email }}</p>
+                                <p class="text-sm text-gray-500">Đã khóa: {{ $blockedEmail->created_at->timezone('Asia/Tokyo')->format('Y/m/d H:i') }} JST</p>
+                            </div>
+                        @empty
+                            <p class="mt-4 text-gray-500">Chưa có email nào trong danh sách cần duyệt lại.</p>
+                        @endforelse
                     </div>
                 </div>
             </section>
