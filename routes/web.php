@@ -139,6 +139,7 @@ Route::post('/reports', function (Request $request) {
         'address' => ['nullable', 'string', 'max:255'],
         'latitude' => ['required', 'numeric'],
         'longitude' => ['required', 'numeric'],
+        'client_token' => ['nullable', 'string', 'max:80'],
         'product_name' => ['required', 'string', 'max:255'],
         'quantity_text' => ['required', 'string', 'max:255'],
         'status' => ['required', 'in:active,scheduled,sold_out'],
@@ -165,6 +166,17 @@ Route::post('/reports', function (Request $request) {
 
     $latitude = round((float) $validated['latitude'], 7);
     $longitude = round((float) $validated['longitude'], 7);
+    $clientToken = $validated['client_token'] ?? null;
+
+    if ($clientToken) {
+        $existingReport = SalesReport::where('user_id', $request->user()->id)
+            ->where('client_token', $clientToken)
+            ->first();
+
+        if ($existingReport) {
+            return redirect()->route('map')->with('status', 'Thông tin này đã được đăng.');
+        }
+    }
 
     $store = Store::firstOrCreate(
         [
@@ -198,6 +210,7 @@ Route::post('/reports', function (Request $request) {
         'store_id' => $store->id,
         'product_id' => $product->id,
         'user_id' => $request->user()->id,
+        'client_token' => $clientToken,
         'quantity' => 0,
         'quantity_text' => $validated['quantity_text'],
         'sale_type' => $validated['status'] === 'scheduled' ? 'scheduled' : 'now',

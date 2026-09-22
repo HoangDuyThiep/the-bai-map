@@ -452,6 +452,11 @@
             background: var(--accent-strong);
         }
 
+        .primary-button:disabled {
+            opacity: .68;
+            cursor: wait;
+        }
+
         .secondary-button {
             color: var(--text);
             background: #e6edf5;
@@ -570,6 +575,7 @@
         <form class="report-form" id="reportForm" method="POST" action="{{ route('reports.store') }}" novalidate>
             @csrf
             <input id="methodInput" type="hidden" name="_method" value="">
+            <input id="clientTokenInput" type="hidden" name="client_token" value="">
 
             @if ($errors->any())
                 <div class="form-errors" role="alert">
@@ -731,6 +737,7 @@
     const longitudeInput = document.querySelector('#longitudeInput');
     const reportForm = document.querySelector('#reportForm');
     const methodInput = document.querySelector('#methodInput');
+    const clientTokenInput = document.querySelector('#clientTokenInput');
     const storeNameInput = document.querySelector('#storeNameInput');
     const addressInput = document.querySelector('#addressInput');
     const productNameInput = document.querySelector('#productNameInput');
@@ -746,6 +753,14 @@
     let selectedPlace = null;
     let selectedPlaceMarker = null;
     const markerById = new Map();
+
+    function makeClientToken() {
+        if (window.crypto?.randomUUID) {
+            return window.crypto.randomUUID();
+        }
+
+        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
 
     function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -953,6 +968,7 @@
     function resetReportForm() {
         reportForm.action = @json(route('reports.store'));
         methodInput.value = '';
+        clientTokenInput.value = makeClientToken();
         storeNameInput.value = '';
         addressInput.value = '';
         latitudeInput.value = '';
@@ -962,6 +978,7 @@
         statusInput.value = 'active';
         saleAtInput.value = '';
         noteInput.value = '';
+        submitReportButton.disabled = false;
         submitReportButton.textContent = 'Đăng thông tin';
         toggleSaleAtField();
     }
@@ -974,6 +991,7 @@
 
         reportForm.action = `/reports/${report.id}`;
         methodInput.value = 'PATCH';
+        clientTokenInput.value = '';
         storeNameInput.value = report.store ?? '';
         addressInput.value = report.address ?? '';
         latitudeInput.value = report.lat;
@@ -983,6 +1001,7 @@
         statusInput.value = report.status ?? 'active';
         saleAtInput.value = report.saleAtInput ?? '';
         noteInput.value = report.note ?? '';
+        submitReportButton.disabled = false;
         submitReportButton.textContent = 'Cập nhật thông tin';
         toggleSaleAtField();
         setDraftStoreLocation({
@@ -1101,6 +1120,17 @@
 
     closeFormButton.addEventListener('click', () => {
         setReportForm(false);
+    });
+
+    reportForm.addEventListener('submit', () => {
+        if (!methodInput.value && !clientTokenInput.value) {
+            clientTokenInput.value = makeClientToken();
+        }
+
+        submitReportButton.disabled = true;
+        submitReportButton.textContent = methodInput.value === 'PATCH'
+            ? 'Đang cập nhật...'
+            : 'Đang đăng...';
     });
 
     statusInput.addEventListener('change', toggleSaleAtField);

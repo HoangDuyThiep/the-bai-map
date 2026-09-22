@@ -10,6 +10,7 @@ class SalesReport extends Model
         'store_id',
         'product_id',
         'user_id',
+        'client_token',
         'quantity',
         'quantity_text',
         'sale_type',

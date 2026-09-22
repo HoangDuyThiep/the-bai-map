@@ -62,6 +62,26 @@ class ExampleTest extends TestCase
         $this->assertTrue($report->expires_at->greaterThan(now()->addHours(11)));
     }
 
+    public function test_duplicate_report_submit_with_same_client_token_is_ignored(): void
+    {
+        $user = User::factory()->create();
+        $payload = [
+            'store_name' => 'Double Click Store',
+            'address' => 'Osaka',
+            'latitude' => 34.7043,
+            'longitude' => 135.4966,
+            'client_token' => 'same-submit-token',
+            'product_name' => 'MEGAドリームex',
+            'quantity_text' => '15 pack',
+            'status' => 'active',
+        ];
+
+        $this->actingAs($user)->post('/reports', $payload);
+        $this->actingAs($user)->post('/reports', $payload);
+
+        $this->assertSame(1, SalesReport::where('client_token', 'same-submit-token')->count());
+    }
+
     public function test_scheduled_report_requires_sale_time(): void
     {
         $response = $this->actingAs(User::factory()->create())->from('/')->post('/reports', [
